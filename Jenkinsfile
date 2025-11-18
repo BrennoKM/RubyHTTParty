@@ -3,15 +3,33 @@ pipeline {
     agent any
 
     stages {
-        stage('Docker Build'){
+        stage('Docker Build') {
             steps {
                 sh script: 'docker build -t cucumber/httparty .'
             }
         }
 
-        stage('Docker Run'){
+        stage('Docker Run') {
             steps {
-                sh script: 'docker run --name httparty cucumber/httparty $@'
+                script {
+                    try {
+                        sh script: 'docker run -v "$(pwd)/reports:/reports" --name httparty cucumber/httparty $@'
+                        sh script: 'ls $(pwd)/reports'
+                    } catch (exception) {
+                        echo exception.getMessage()
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                }
+            }
+        }
+
+        stage('Generating Test Report') {
+            steps {
+                cucumber (
+                    fileIncludePattern: '*.json',
+                    jsonReportDirectory: 'reports',
+                    buildStatus: currentBuild.result
+                )
             }
         }
 
